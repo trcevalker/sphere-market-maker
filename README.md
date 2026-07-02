@@ -3,25 +3,56 @@
 Autonomous taker agent for the [Unicity Sphere](https://unicity.network) testnet2.  
 Built for the **Testnet2 Build Campaign** — Track: **Autonomous Agents**.
 
+---
+
+## Is this build agentic?
+
+**Yes — fully autonomous, no human in the loop.**
+
+The agent:
+- Spins up a persistent loop via `sphere.market.subscribeFeed()` (WebSocket)
+- Evaluates every incoming listing against configurable price rules **without asking for approval**
+- Decides autonomously whether to fill an offer (price check, concurrency limit, cooldown)
+- Calls `sphere.swap.proposeSwap()` to initiate an atomic swap
+- Listens to swap lifecycle events (`accepted`, `deposit_sent`, `completed`, `failed`) and reacts to each state transition without human intervention
+- Rejects unsolicited incoming proposals on its own
+- Recovers from failures via the SDK's built-in crash-recovery and reconnect logic
+
+The only human action required is the initial `npm start`. Everything after that is the agent.
+
+---
+
+## Does this use AstridOS?
+
+**No.** This project is built directly on [`@unicitylabs/sphere-sdk`](https://github.com/unicity-sphere/sphere-sdk) (v0.10.2) without any AstridOS layer.
+
+AstridOS is a higher-level agent operating system for Unicity; this agent intentionally stays one layer below to demonstrate what can be built with the raw Sphere SDK primitives (`sphere.market`, `sphere.swap`, `sphere.payments`).
+
+---
+
 ## What it does
 
-- Connects to the Sphere market's live WebSocket feed  
-- Evaluates every new listing against configurable price rules  
-- When a match is found, proposes an atomic swap directly to the counterparty  
-- Handles the full swap lifecycle autonomously (deposit, payout verification, logging)  
+- Connects to the Sphere market's live WebSocket feed
+- Evaluates every new listing against configurable price rules
+- When a match is found, proposes an atomic swap directly to the counterparty
+- Handles the full swap lifecycle autonomously (deposit → payout verification → log)
 - Runs as an infinite loop with no human intervention
 
 Currently active pair on testnet2: **UCT / ETH**
+
+---
 
 ## Requirements
 
 - Node.js 18+
 - A Unicity Sphere testnet2 wallet (auto-generated on first run)
 
+---
+
 ## Setup
 
 ```bash
-git clone https://github.com/<your-handle>/sphere-market-maker
+git clone https://github.com/trcevalker/sphere-market-maker
 cd sphere-market-maker
 npm install
 cp .env.example .env
@@ -33,6 +64,7 @@ Edit `.env`:
 |---|---|---|
 | `MNEMONIC` | BIP-39 mnemonic (leave blank to auto-generate) | — |
 | `NETWORK` | `testnet` (covers testnet2) | `testnet` |
+| `ORACLE_API_KEY` | Testnet2 public API key (pre-filled) | `sk_ddc3...` |
 | `BASE_CURRENCY` | Token to buy/sell | `UCT` |
 | `QUOTE_CURRENCY` | Token to pay/receive | `ETH` |
 | `MAX_BUY_PRICE` | Max QUOTE per BASE when buying | `0.1010` |
@@ -42,7 +74,18 @@ Edit `.env`:
 | `MAX_CONCURRENT_SWAPS` | Max in-flight swaps at once | `3` |
 | `PROPOSAL_COOLDOWN_MS` | Min ms between proposals | `10000` |
 
+---
+
 ## Run
+
+### 1. Mint test tokens (testnet2 has no faucet — self-mint)
+
+```bash
+npm run mint
+# Mints 1000 UCT + 1000 ETH into your wallet
+```
+
+### 2. Start the agent
 
 ```bash
 npm start
@@ -51,48 +94,75 @@ npm start
 On first run the agent generates a new wallet and prints the mnemonic.  
 **Copy it into `MNEMONIC=` in your `.env` to persist the wallet.**
 
-Output is newline-delimited JSON (one event per line), e.g.:
+Output is newline-delimited JSON:
 
 ```json
-{"ts":"2026-07-02T13:00:00.000Z","level":"INFO","event":"agent.started","pair":"UCT/ETH"}
-{"ts":"2026-07-02T13:00:01.000Z","level":"INFO","event":"feed.subscribing"}
-{"ts":"2026-07-02T13:00:02.000Z","level":"INFO","event":"feed.listing_matched","side":"sell","price":0.1006}
-{"ts":"2026-07-02T13:00:02.000Z","level":"INFO","event":"swap.proposed","swapId":"abcd..."}
-{"ts":"2026-07-02T13:00:10.000Z","level":"INFO","event":"swap.completed","payoutVerified":true}
+{"ts":"2026-07-02T13:00:00Z","level":"INFO","event":"agent.started","pair":"UCT/ETH","maxBuyPrice":0.101}
+{"ts":"2026-07-02T13:00:01Z","level":"INFO","event":"feed.subscribing"}
+{"ts":"2026-07-02T13:00:02Z","level":"INFO","event":"feed.initial_batch","count":10}
+{"ts":"2026-07-02T13:00:15Z","level":"INFO","event":"feed.listing_matched","side":"sell","price":0.1006,"agent":"@chichi"}
+{"ts":"2026-07-02T13:00:15Z","level":"INFO","event":"swap.proposing","counterparty":"@chichi"}
+{"ts":"2026-07-02T13:00:16Z","level":"INFO","event":"swap.proposed","swapId":"abcd1234..."}
+{"ts":"2026-07-02T13:00:20Z","level":"INFO","event":"swap.accepted","role":"proposer"}
+{"ts":"2026-07-02T13:00:21Z","level":"INFO","event":"swap.deposit_sent","swapId":"abcd1234..."}
+{"ts":"2026-07-02T13:00:30Z","level":"INFO","event":"swap.completed","payoutVerified":true}
 ```
+
+---
 
 ## Architecture
 
 ```
-index.ts          — SDK init, wallet load/generate
-agent.ts          — MarketMakingAgent: feed loop + swap lifecycle
-listing.ts        — FeedListing parser and price-rule filter
-config.ts         — .env loader
-logger.ts         — Structured JSON logger
+index.ts     — SDK init, wallet load/generate, accounting + swap + market enabled
+agent.ts     — MarketMakingAgent: feed loop, listing evaluation, swap lifecycle
+listing.ts   — FeedListing parser and price-rule filter
+config.ts    — .env loader
+logger.ts    — Structured JSON logger (newline-delimited)
+mint.ts      — One-shot script: self-mint UCT/ETH on testnet2
 ```
 
-## How the taker loop works
+---
+
+## Autonomous decision loop
 
 ```
-subscribeFeed()
-     │
-     ▼
- new listing
-     │
-  parseListing()   ← extract side, price, amounts
-     │
+sphere.market.subscribeFeed()   ← WebSocket, reconnects automatically
+          │
+    new listing arrives
+          │
+     parseListing()             ← extract side (buy/sell), price, counterparty
+          │
   listingMatchesRules()
-     │  price in range?
-     │  not already proposed?
-     │  under concurrent-swap limit?
-     │  past cooldown?
-     ▼
-  proposeSwap()    ← send atomic-swap proposal via DM
-     │
-  swap events      ← accepted / deposit_sent / completed / failed
-     ▼
-  log each step
+     ├─ price in range?
+     ├─ not already proposed?
+     ├─ under concurrent-swap cap?
+     └─ past cooldown window?
+          │ YES to all
+          ▼
+  sphere.swap.proposeSwap()     ← DM-based atomic swap proposal
+          │
+  sphere.on('swap:accepted')    ← counterparty accepted
+  sphere.on('swap:deposit_sent')← our deposit is on its way
+  sphere.on('swap:completed')   ← payout verified, swap settled
+  sphere.on('swap:failed')      ← handle & log, remove from active set
 ```
+
+---
+
+## Testnet2 token registry
+
+Coin IDs used for self-minting (from [unicity-ids](https://github.com/unicitynetwork/unicity-ids)):
+
+| Symbol | Hex Coin ID (truncated) |
+|--------|------------------------|
+| UCT | `f581d30f...` |
+| ETH | `746a4e75...` |
+| USDU | `e210f989...` |
+| BTC | `3cc412d8...` |
+
+Full IDs in [`src/mint.ts`](src/mint.ts).
+
+---
 
 ## License
 
