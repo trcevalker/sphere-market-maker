@@ -1,5 +1,6 @@
 node_modules/
 dist/
 wallet-data/
+sphere-tokens/
 .env
 *.log
