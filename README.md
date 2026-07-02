@@ -165,11 +165,13 @@ mint.ts        — One-shot script: self-mint UCT/ETH on testnet2
 ## Live status page
 
 The agent serves a small live status page on `PORT` (default `8080`) — the same process,
-no separate deploy. Shows current address, trading pair, and the last ~60 structured log
-events, auto-refreshing every 5s. This is what the marketplace **App URL** points at.
+no separate service. Shows current address, trading pair, and the last ~60 structured log
+events, auto-refreshing every 5s. Not currently deployed anywhere public — run locally
+(`npm start`, then open `http://localhost:8080`) to see it. The marketplace **App URL**
+points at this GitHub repo instead, since it can't be loaded inside the Sphere iframe.
 
 - `GET /` — HTML status page
-- `GET /health` — plaintext `ok`, used as the Railway healthcheck
+- `GET /health` — plaintext `ok`, for platform healthchecks
 - `GET /api/status` — same data as JSON
 
 ---
