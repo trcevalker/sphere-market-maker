@@ -11,11 +11,14 @@ async function main(): Promise<void> {
     network: config.network,
     dataDir: config.dataDir,
     market: true,
+    oracle: { apiKey: config.oracleApiKey },
   });
 
   const initResult = await Sphere.init({
     ...providers,
+    network: config.network,
     ...(config.mnemonic ? { mnemonic: config.mnemonic } : { autoGenerate: true }),
+    accounting: true,
     swap: true,
     market: true,
     onProgress: (p) => log.debug('sdk.init_progress', { step: p.step }),
@@ -23,14 +26,19 @@ async function main(): Promise<void> {
 
   const sphere = initResult.sphere;
 
-  if (initResult.generatedMnemonic) {
-    log.info('wallet.generated', {
-      mnemonic: initResult.generatedMnemonic,
-      action: 'SAVE THIS — add it as MNEMONIC= in your .env to reuse this wallet',
+  // Log mnemonic whenever it's available — on first generate AND on every load
+  // so the user can always recover it from logs.
+  const mnemonic = initResult.generatedMnemonic ?? sphere.getMnemonic();
+  if (mnemonic) {
+    log.info('wallet.mnemonic', {
+      mnemonic,
+      action: 'SAVE THIS — set MNEMONIC= in .env to keep this wallet across runs',
     });
   }
 
-  log.info('sdk.ready');
+  log.info('sdk.ready', {
+    address: sphere.identity?.directAddress ?? sphere.identity?.nametag ?? 'unknown',
+  });
 
   const agent = new MarketMakingAgent(sphere);
   await agent.start();

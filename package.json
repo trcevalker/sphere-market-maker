@@ -2,15 +2,19 @@
   "name": "sphere-market-maker",
   "version": "0.1.0",
   "description": "Autonomous market-making agent for Unicity Sphere testnet2",
+  "type": "module",
   "main": "dist/index.js",
   "scripts": {
     "start": "tsx src/index.ts",
+    "mint": "tsx src/mint.ts",
     "build": "tsc",
     "start:built": "node dist/index.js"
   },
   "dependencies": {
+    "@types/ws": "^8.18.1",
     "@unicitylabs/sphere-sdk": "^0.10.2",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "ws": "^8.21.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

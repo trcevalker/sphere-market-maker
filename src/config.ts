@@ -1,11 +1,5 @@
 import 'dotenv/config';
 
-function required(key: string): string {
-  const v = process.env[key];
-  if (!v) throw new Error(`Missing required env var: ${key}`);
-  return v;
-}
-
 function optional(key: string, fallback: string): string {
   return process.env[key] || fallback;
 }
@@ -27,4 +21,5 @@ export const config = {
   swapTimeoutSecs: parseInt(optional('SWAP_TIMEOUT_SECS', '300'), 10),
   maxConcurrentSwaps: parseInt(optional('MAX_CONCURRENT_SWAPS', '3'), 10),
   proposalCooldownMs: parseInt(optional('PROPOSAL_COOLDOWN_MS', '10000'), 10),
+  oracleApiKey: optional('ORACLE_API_KEY', 'sk_ddc3cfcc001e4a28ac3fad7407f99590'),
 } as const;
