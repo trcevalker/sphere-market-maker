@@ -151,13 +151,26 @@ far — proposals go through, full settlement is still unverified):
 ## Architecture
 
 ```
-index.ts     — SDK init, wallet load/generate, accounting + swap + market enabled
-agent.ts     — MarketMakingAgent: feed loop, listing evaluation, swap lifecycle
-listing.ts   — FeedListing parser and price-rule filter
-config.ts    — .env loader
-logger.ts    — Structured JSON logger (newline-delimited)
-mint.ts      — One-shot script: self-mint UCT/ETH on testnet2
+index.ts       — SDK init, wallet load/generate, accounting + swap + market enabled
+agent.ts       — MarketMakingAgent: feed loop, listing evaluation, swap lifecycle
+listing.ts     — FeedListing parser and price-rule filter
+config.ts      — .env loader
+logger.ts      — Structured JSON logger (newline-delimited), keeps a ring buffer for the status page
+statusServer.ts— Live HTTP status page (dark-mode, auto-refreshing) + /health for hosting platforms
+mint.ts        — One-shot script: self-mint UCT/ETH on testnet2
 ```
+
+---
+
+## Live status page
+
+The agent serves a small live status page on `PORT` (default `8080`) — the same process,
+no separate deploy. Shows current address, trading pair, and the last ~60 structured log
+events, auto-refreshing every 5s. This is what the marketplace **App URL** points at.
+
+- `GET /` — HTML status page
+- `GET /health` — plaintext `ok`, used as the Railway healthcheck
+- `GET /api/status` — same data as JSON
 
 ---
 

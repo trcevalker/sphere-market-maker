@@ -29,4 +29,8 @@ export const config = {
   maxConcurrentSwaps: parseInt(optional('MAX_CONCURRENT_SWAPS', '3'), 10),
   proposalCooldownMs: parseInt(optional('PROPOSAL_COOLDOWN_MS', '10000'), 10),
   oracleApiKey: optional('ORACLE_API_KEY', 'sk_ddc3cfcc001e4a28ac3fad7407f99590'),
+
+  // HTTP status page (for hosting platforms like Railway that assign PORT,
+  // and so the app has a live URL that loads in the Sphere marketplace iframe)
+  port: parseInt(optional('PORT', '8080'), 10),
 } as const;

@@ -3,6 +3,7 @@ import { createNodeProviders } from '@unicitylabs/sphere-sdk/impl/nodejs';
 import { config } from './config.js';
 import { log } from './logger.js';
 import { MarketMakingAgent } from './agent.js';
+import { startStatusServer } from './statusServer.js';
 
 async function main(): Promise<void> {
   log.info('sdk.init', { network: config.network, dataDir: config.dataDir });
@@ -36,9 +37,16 @@ async function main(): Promise<void> {
     });
   }
 
-  log.info('sdk.ready', {
-    address: sphere.identity?.directAddress ?? sphere.identity?.nametag ?? 'unknown',
-  });
+  const address = sphere.identity?.directAddress ?? sphere.identity?.nametag ?? 'unknown';
+  log.info('sdk.ready', { address });
+
+  const startedAt = new Date().toISOString();
+  startStatusServer(config.port, () => ({
+    address,
+    pair: `${config.baseCurrency}/${config.quoteCurrency}`,
+    startedAt,
+  }));
+  log.info('status.listening', { port: config.port });
 
   const agent = new MarketMakingAgent(sphere);
   await agent.start();
