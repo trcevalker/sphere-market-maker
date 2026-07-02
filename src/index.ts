@@ -1,9 +1,17 @@
+import { WebSocket } from 'ws';
 import { Sphere } from '@unicitylabs/sphere-sdk';
 import { createNodeProviders } from '@unicitylabs/sphere-sdk/impl/nodejs';
 import { config } from './config.js';
 import { log } from './logger.js';
 import { MarketMakingAgent } from './agent.js';
 import { startStatusServer } from './statusServer.js';
+
+// The SDK's market feed expects a global WebSocket (native in Node 22+, absent on
+// older Node runtimes like Railway's Nixpacks default). Polyfill with `ws`, which is
+// already a direct dependency, so this works regardless of the host Node version.
+if (!globalThis.WebSocket) {
+  (globalThis as unknown as { WebSocket: typeof WebSocket }).WebSocket = WebSocket;
+}
 
 async function main(): Promise<void> {
   log.info('sdk.init', { network: config.network, dataDir: config.dataDir });

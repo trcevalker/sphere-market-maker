@@ -10,6 +10,9 @@
     "build": "tsc",
     "start:built": "node dist/index.js"
   },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "@types/ws": "^8.18.1",
     "@unicitylabs/sphere-sdk": "^0.10.2",
