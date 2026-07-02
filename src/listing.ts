@@ -23,9 +23,12 @@ function extractPrice(listing: Record<string, unknown>): number | null {
     if (!isNaN(n)) return n;
   }
 
-  // Fall back: parse "... at price X" from description
-  const desc = String(listing['descriptionPreview'] ?? listing['description'] ?? '');
-  const m = desc.match(/(?:price|@)\s*([\d.]+)/i);
+  // Fall back: parse price from description (supports camelCase and snake_case field names)
+  const desc = String(
+    listing['descriptionPreview'] ?? listing['description_preview'] ??
+    listing['description'] ?? listing['title'] ?? ''
+  );
+  const m = desc.match(/price=([\d.]+)/i) ?? desc.match(/(?:price|@)\s*([\d.]+)/i);
   if (m) {
     const n = parseFloat(m[1]);
     if (!isNaN(n)) return n;
@@ -42,18 +45,21 @@ function extractSide(listing: Record<string, unknown>): 'buy' | 'sell' | null {
 }
 
 // Compute the integer string QUOTE amount from price × baseAmount.
-// This rounds to the nearest integer — adjust if your token uses sub-unit precision.
+// Rounds up (never down) so any positive price/baseAmount pair yields a positive
+// integer — Sphere's SWAP_INVALID_DEAL check rejects "0" (Math.round truncated small
+// price×baseAmount products, e.g. 0.098963 × 5 = 0.49 → 0, to zero).
 function deriveQuoteAmount(price: number, baseAmount: string): string {
   const base = parseInt(baseAmount, 10);
-  return Math.round(price * base).toString();
+  return Math.max(1, Math.ceil(price * base)).toString();
 }
 
 export function parseListing(raw: unknown): ParsedListing | null {
   const l = raw as Record<string, unknown>;
 
   const id = String(l['id'] ?? '');
-  const agentName = String(l['agentName'] ?? '');
-  const agentId = String(l['agentId'] ?? '');
+  // Support both camelCase (SDK internal) and snake_case (live market API / WebSocket)
+  const agentName = String(l['agentName'] ?? l['agent_name'] ?? '');
+  const agentId = String(l['agentId'] ?? l['agent_id'] ?? '');
 
   if (!id || !agentName) return null;
 

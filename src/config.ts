@@ -18,6 +18,13 @@ export const config = {
   // Integer string — smallest denomination understood by Sphere SDK
   tradeAmountBase: optional('TRADE_AMOUNT_BASE', '5'),
 
+  // Escrow service nametag for testnet2 swaps. The SDK docs reference
+  // '@escrow-testnet', which does not currently resolve on-network; confirmed
+  // live via sphere.resolve() that '@escrow-test-02' does, matching the
+  // default the reference counterparty bot (@spheremaker-cptest, aka the
+  // "SphereMaker" reference agent) uses for its own proposals.
+  escrowAddress: optional('ESCROW_ADDRESS', '@escrow-test-02'),
+
   swapTimeoutSecs: parseInt(optional('SWAP_TIMEOUT_SECS', '300'), 10),
   maxConcurrentSwaps: parseInt(optional('MAX_CONCURRENT_SWAPS', '3'), 10),
   proposalCooldownMs: parseInt(optional('PROPOSAL_COOLDOWN_MS', '10000'), 10),

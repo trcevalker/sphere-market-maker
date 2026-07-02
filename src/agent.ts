@@ -73,6 +73,7 @@ export class MarketMakingAgent {
     log.info('feed.subscribing');
 
     const unsubscribe = market.subscribeFeed((msg: FeedMsg) => {
+      log.debug('feed.raw_message', { type: msg.type });
       if (msg.type === 'initial') {
         log.info('feed.initial_batch', { count: msg.listings.length });
         for (const listing of msg.listings) {
@@ -94,7 +95,15 @@ export class MarketMakingAgent {
 
   private handleListing(raw: unknown): void {
     const parsed = parseListing(raw);
-    if (!parsed) return;
+    if (!parsed) {
+      const l = raw as Record<string, unknown>;
+      log.debug('feed.listing_unparseable', {
+        id: l?.['id'],
+        type: l?.['type'],
+        agent: l?.['agentName'] ?? l?.['agent_name'],
+      });
+      return;
+    }
 
     log.debug('feed.listing_received', {
       id: parsed.id,

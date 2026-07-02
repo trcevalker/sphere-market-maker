@@ -3,6 +3,42 @@
 Autonomous taker agent for the [Unicity Sphere](https://unicity.network) testnet2.  
 Built for the **Testnet2 Build Campaign** — Track: **Autonomous Agents**.
 
+**Agentic:** Yes  
+**Built on AstridOS:** No — built directly on `@unicitylabs/sphere-sdk`
+
+---
+
+## Current Status
+
+The agent is live end-to-end at the protocol level, confirmed against the real testnet2
+network (not mocked):
+
+- Connects to testnet2, subscribes to the market feed, and evaluates every incoming
+  listing against its price rules (`feed.listing_matched`)
+- Builds a correctly-formatted swap deal (integer-string amounts, resolved escrow) and
+  sends it — `swap.proposing → swap.proposed` completes without error
+- If a proposal isn't accepted within `SWAP_TIMEOUT_SECS`, the SDK marks it `failed`
+  (`Proposal timed out`); the agent's feed loop naturally re-evaluates the next matching
+  listing and sends a fresh proposal — no manual intervention needed
+
+No swap has reached `swap.completed` yet — the test counterparties seen so far
+(`@spheremaker-cptest`) weren't actively accepting proposals during our test runs, so
+nothing has advanced past `proposed`. The full pipeline up to that point (feed → match →
+deal construction → escrow resolution → proposal delivery → timeout handling) is proven
+correct; what's unverified is the accept/deposit/payout leg, which depends on a
+counterparty that's actually listening.
+
+Sample log from a real run (testnet2, `@escrow-test-02`):
+
+```json
+{"ts":"2026-07-02T14:06:51.935Z","level":"INFO","event":"swap.proposing","listingId":"87c25b2a-2c65-4aeb-97d0-03c2746c1450","counterparty":"@spheremaker-cptest","deal":{"partyACurrency":"ETH","partyAAmount":"1","partyBCurrency":"UCT","partyBAmount":"5","timeout":300}}
+{"ts":"2026-07-02T14:06:51.935Z","level":"INFO","event":"swap.proposed","swapId":"10edc827d6a19f136f5ef94d3ec9e21d143bfe740e4e380ffac7b02fe923db78","listingId":"87c25b2a-2c65-4aeb-97d0-03c2746c1450","counterparty":"@spheremaker-cptest"}
+{"ts":"2026-07-02T14:10:04.536Z","level":"ERROR","event":"swap.failed","swapId":"461511d3d67c73c38a36042f010e33b8527028a79a6e01b05008f12329963de2","error":"Proposal timed out"}
+```
+
+(The `swap.failed` line is an earlier proposal on the same listing timing out; the agent
+had already moved on and proposed again — visible as the `swap.proposed` line above it.)
+
 ---
 
 ## Is this build agentic?
@@ -94,7 +130,9 @@ npm start
 On first run the agent generates a new wallet and prints the mnemonic.  
 **Copy it into `MNEMONIC=` in your `.env` to persist the wallet.**
 
-Output is newline-delimited JSON:
+Output is newline-delimited JSON. Illustrative full lifecycle (see
+[Current Status](#current-status) above for what's actually been observed on testnet2 so
+far — proposals go through, full settlement is still unverified):
 
 ```json
 {"ts":"2026-07-02T13:00:00Z","level":"INFO","event":"agent.started","pair":"UCT/ETH","maxBuyPrice":0.101}

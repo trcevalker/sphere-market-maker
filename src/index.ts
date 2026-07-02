@@ -19,7 +19,7 @@ async function main(): Promise<void> {
     network: config.network,
     ...(config.mnemonic ? { mnemonic: config.mnemonic } : { autoGenerate: true }),
     accounting: true,
-    swap: true,
+    swap: { defaultEscrowAddress: config.escrowAddress },
     market: true,
     onProgress: (p) => log.debug('sdk.init_progress', { step: p.step }),
   });
